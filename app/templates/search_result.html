@@ -1,0 +1,52 @@
+{% extends 'base.html' %}
+
+
+{% block body %}
+<div class="container">
+    <div class="row">
+        <div class="col-md-12">
+    <h2>{{ title }}</h2>
+    { % if search_query.result_found == 1 %}
+    <table>
+        <thead>
+            <tr>
+                <th>Query</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+
+        <tbody>
+            <tr>
+
+            </tr>
+        </tbody>
+    </table>
+    {% endif %}
+
+    <h2>Top 10 last queries</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Query</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+
+        <tbody>
+            <tr>
+                <td>{{ query.keyword }}</td>
+                <td>
+                    {% if query.status == 'completed' %}
+                        <i class="fa fa-check"></i>
+                    {% else %}
+                        On progress
+                    {% endif %}
+                </td>
+            </tr>
+        </tbody>
+    </table>
+    </div>
+    </div>
+</div>
+
+{% endblock %}

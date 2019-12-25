@@ -16,10 +16,11 @@ class Config(object):
                                )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SECRET_KEY = os.getenv('SECRET_KEY')
-    EMAIL_FROM = os.getenv('MAIL_FROM')
     BASE_URL = os.getenv('BASE_URL')
-    LIVE_URL = os.getenv('LIVE_URL')
     ROOT_PATH = os.getenv('ROOT_PATH')
+
+    CELERY_BROKER_URL = 'redis://localhost:6379/0'
+    CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
 
     SESSION_TYPE = 'sqlalchemy'
     SESSION_USE_SIGNER = True

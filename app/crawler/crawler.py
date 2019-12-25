@@ -2,10 +2,13 @@ import requests
 import random
 import json
 import re
+import time
 from lxml.html import HTMLParser, fromstring, tostring, parse, etree
 from urllib3.util.retry import Retry
 from requests.adapters import HTTPAdapter
 from io import StringIO
+
+from .signals import scraping_done
 
 
 def cleanhtml(raw_html):
@@ -22,7 +25,7 @@ def cleanhtml(raw_html):
 class Crawler:
     """Generic Base Crawler Class"""
 
-    headers = [
+    user_agents = [
         'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/74.0.3729.169 Safari/537.36',
         'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/72.0.3626.121 Safari/537.36',
         'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/74.0.3729.157 Safari/537.36',
@@ -34,19 +37,22 @@ class Crawler:
     def __init__(self, method='GET', headers=None):
         # Take a random User-Agent so that not blocked by Google or other search engines
 
-        self.selected_header = random.choice(self.headers)
+        self.selected_useragent = random.choice(self.user_agents)
         self.method = method
-
-
-    def scrape(self, keyword=None):
-        pass
 
 
 class GoogleCrawler(Crawler):
     """Google Crawler Class"""
     url = 'https://www.google.com/search'
 
-    def scrape(self, keyword):
+    def scrape(self, keyword, query_id):
+        if not keyword:
+            raise ValueError('Keyword is not provided!')
+        if not query_id:
+            raise ValueError('Query id is not provided!')
+
+        start_time = time.time()
+
         s = requests.Session()
 
         # Retrying 7 times if Google returned timeout / network issue for better reliability
@@ -58,30 +64,52 @@ class GoogleCrawler(Crawler):
 
         if self.method == 'GET':
             params = { 'q': keyword }
-            response = s.get(self.url, params=params, headers={ 'User-Agent': self.selected_header})
+            response = s.get(self.url, params=params, headers={ 'User-Agent': self.selected_useragent})
 
-            return self.parse(response.content)
+            return self.parse(html=response.content, keyword=keyword,
+                              http_status_code=response.status_code,
+                              query_id=query_id, start_time=start_time)
 
-    def parse(self, html):
-        html = html.decode("utf-8")
-        resp_xpath = fromstring(html)
+    def parse(self, **kwargs):
+        try:
+            html = kwargs['html'].decode("utf-8")
+            resp_xpath = fromstring(html)
 
-        resp_container = []
+            resp_container = {
+                'query_id': kwargs['query_id'],
+                'keyword': kwargs['keyword'],
+                'results': [],
+                'html': kwargs['html'],
+                'http_status_code': kwargs['http_status_code']
+            }
 
-        for r in resp_xpath.xpath('//div[@class="rc"]'):
-            title = r.xpath('div[@class="r"]/a/h3/text()')
-            a = r.xpath('div[@class="r"]/a/@href')
-            paragraph = r.xpath('div[@class="s"]/div/span[@class="st"]')
+            for r in resp_xpath.xpath('//div[@class="rc"]'):
+                title = r.xpath('div[@class="r"]/a/h3')
+                a = r.xpath('div[@class="r"]/a/@href')
+                paragraph = r.xpath('div[@class="s"]/div/span[@class="st"]')
 
-            resp_container.append({
-                'title': title[0],
-                'link': a[0],
-                'paragraph': tostring(paragraph[0]).decode()
-            })
+                resp_container['status'] = 'ok'
+                resp_container['results'].append({
+                    'title': cleanhtml(tostring(title[0]).decode()),
+                    'link': a[0],
+                    'description': cleanhtml(tostring(paragraph[0]).decode())
+                })
 
-            print(resp_container)
+            end_time = time.time()
+            time_taken= (end_time - kwargs['start_time']) * 1000
 
-        return json.dumps(resp_container)
+            resp_container['time_taken'] = time_taken
+
+            scraping_done.send(self, search_engine='google', response=resp_container)
+
+            return resp_container
+        except Exception as e:
+            return {
+                'status': 'error',
+                'search_engine': 'google',
+                'message': 'Error occurred. Please check your log',
+                'error_message': str(e)
+            }
 
 
 class DuckduckGoCrawler(Crawler):
@@ -89,7 +117,13 @@ class DuckduckGoCrawler(Crawler):
 
     url = 'https://duckduckgo.com/html/'
 
-    def scrape(self, keyword):
+
+    def scrape(self, keyword, query_id):
+        if not keyword:
+            raise ValueError('Keyword is not provided!')
+        if not query_id:
+            raise ValueError('Query id is not provided!')
+        start_time = time.time()
         s = requests.Session()
 
         # Retrying 7 times if Google returned timeout / network issue for better reliability
@@ -101,29 +135,52 @@ class DuckduckGoCrawler(Crawler):
 
         if self.method == 'GET':
             params = { 'q': keyword }
-            response = s.get(self.url, params=params, headers={ 'User-Agent': self.selected_header})
+            response = s.get(self.url, params=params, headers={ 'User-Agent': self.selected_useragent})
 
-            return self.parse(response.content)
+            return self.parse(html=response.content, keyword=keyword,
+                              http_status_code=response.status_code,
+                              query_id=query_id, start_time=start_time)
 
-    def parse(self, html):
-        html = html.decode("utf-8")
-        resp_xpath = fromstring(html)
+    def parse(self, **kwargs):
+        try:
+            html = kwargs['html'].decode("utf-8")
+            resp_xpath = fromstring(html)
 
-        resp_container = []
+            resp_container = {
+                'query_id': kwargs['query_id'],
+                'keyword': kwargs['keyword'],
+                'results': [],
+                'html': kwargs['html'],
+                'http_status_code': kwargs['http_status_code']
+            }
 
-        for r in resp_xpath.xpath('//div[contains(@class, "result__body")]'):
-            title = r.xpath('h2[@class="result__title"]/a')
+            for r in resp_xpath.xpath('//div[contains(@class, "result__body")]'):
+                title = r.xpath('h2[@class="result__title"]/a')
 
-            link = r.xpath('h2[@class="result__title"]/a/@href')
-            description = r.xpath('a[@class="result__snippet"]')
+                link = r.xpath('h2[@class="result__title"]/a/@href')
+                description = r.xpath('a[@class="result__snippet"]')
 
-            resp_container.append({
-                'title': cleanhtml(tostring(title[0]).decode()),
-                'link': link[0],
-                'paragraph': cleanhtml(tostring(description[0]).decode())
-            })
+                resp_container['results'].append({
+                    'title': cleanhtml(tostring(title[0]).decode()),
+                    'link': link[0],
+                    'description': cleanhtml(tostring(description[0]).decode())
+                })
 
-        return json.dumps(resp_container)
+            end_time = time.time()
+            time_taken= (end_time - kwargs['start_time']) * 1000
+
+            resp_container['time_taken'] = time_taken
+
+            scraping_done.send(self, search_engine='duckduckgo', response=resp_container)
+
+            return resp_container
+        except Exception as e:
+            return {
+                'status': 'error',
+                'search_engine': 'google',
+                'message': 'Error occurred. Please check your log',
+                'error_message': str(e)
+            }
 
 
 class WikipediaCrawler(Crawler):
@@ -131,7 +188,14 @@ class WikipediaCrawler(Crawler):
 
     url = 'https://en.wikipedia.org/w/index.php'
 
-    def scrape(self, keyword):
+    def scrape(self, keyword, query_id):
+        if not keyword:
+            raise ValueError('Keyword is not provided!')
+        if not query_id:
+            raise ValueError('Query id is not provided!')
+
+        start_time = time.time()
+
         if keyword is None:
             raise Exception('Keyword is not defined')
 
@@ -156,27 +220,49 @@ class WikipediaCrawler(Crawler):
                 'ns0': 1
             }
 
-            response = s.get(self.url, params=params, headers={'User-Agent': self.selected_header})
+            response = s.get(self.url, params=params, headers={'User-Agent': self.selected_useragent})
 
-            return self.parse(response.content)
+            return self.parse(html=response.content, keyword=keyword,
+                              http_status_code=response.status_code,
+                              query_id=query_id, start_time=start_time)
 
 
-    def parse(self, html):
-        html = html.decode("utf-8")
-        resp_xpath = fromstring(html)
+    def parse(self, **kwargs):
+        try:
+            html = kwargs['html'].decode("utf-8")
+            resp_xpath = fromstring(html)
 
-        resp_container = []
+            resp_container = {
+                'query_id': kwargs['query_id'],
+                'keyword': kwargs['keyword'],
+                'results': [],
+                'html': kwargs['html'],
+                'http_status_code': kwargs['http_status_code']
+            }
 
-        for r in resp_xpath.xpath('//li[contains(@class, "mw-search-result")]'):
-            title = r.xpath('div[@class="mw-search-result-heading"]/a')
-            link = r.xpath('div[@class="mw-search-result-heading"]/a/@href')
-            description = r.xpath('div[@class="searchresult"]')
-            print(tostring(description[0]))
+            for r in resp_xpath.xpath('//li[contains(@class, "mw-search-result")]'):
+                title = r.xpath('div[@class="mw-search-result-heading"]/a')
+                link = r.xpath('div[@class="mw-search-result-heading"]/a/@href')
+                description = r.xpath('div[@class="searchresult"]')
 
-            resp_container.append({
-                'title': cleanhtml(tostring(title[0]).decode()),
-                'link': 'https://en.wikiepedia.org{}'.format(link[0]),
-                'paragraph': cleanhtml(tostring(description[0]).decode())
-            })
+                resp_container['results'].append({
+                    'title': cleanhtml(tostring(title[0]).decode()),
+                    'link': 'https://en.wikiepedia.org{}'.format(link[0]),
+                    'description': cleanhtml(tostring(description[0]).decode())
+                })
 
-        return json.dumps(resp_container, ensure_ascii=False)
+            end_time = time.time()
+            time_taken= (end_time - kwargs['start_time']) * 1000
+
+            resp_container['time_taken'] = time_taken
+
+            scraping_done.send(self, search_engine='wikipedia', response=resp_container)
+
+            return resp_container
+        except Exception as e:
+            return {
+                'status': 'error',
+                'search_engine': 'wikipedia',
+                'message': 'Error occurred. Please check your log',
+                'error_message': str(e)
+            }

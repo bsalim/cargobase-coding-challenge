@@ -3,11 +3,10 @@ import random
 import json
 import re
 import time
-from lxml.html import HTMLParser, fromstring, tostring, parse, etree
+from lxml.html import fromstring, tostring
 from urllib3.util.retry import Retry
 from requests.adapters import HTTPAdapter
-from io import StringIO
-
+from app import app
 from .signals import scraping_done
 
 
@@ -38,6 +37,7 @@ class Crawler:
         # Take a random User-Agent so that not blocked by Google or other search engines
 
         self.selected_useragent = random.choice(self.user_agents)
+        app.logger.info(self.selected_useragent)
         self.method = method
 
 
@@ -64,6 +64,8 @@ class GoogleCrawler(Crawler):
 
         if self.method == 'GET':
             params = { 'q': keyword }
+
+            app.logger.info('Begin Google Scraping')
             response = s.get(self.url, params=params, headers={ 'User-Agent': self.selected_useragent})
 
             return self.parse(html=response.content, keyword=keyword,
@@ -100,16 +102,19 @@ class GoogleCrawler(Crawler):
 
             resp_container['time_taken'] = time_taken
 
+            print('done')
             scraping_done.send(self, search_engine='google', response=resp_container)
 
             return resp_container
         except Exception as e:
+            app.logger.error('Scraping error {GoogleCrawler}: ' + e)
             return {
                 'status': 'error',
-                'search_engine': 'google',
+                'search_engine': 'wikipedia',
                 'message': 'Error occurred. Please check your log',
                 'error_message': str(e)
             }
+
 
 
 class DuckduckGoCrawler(Crawler):
@@ -123,6 +128,7 @@ class DuckduckGoCrawler(Crawler):
             raise ValueError('Keyword is not provided!')
         if not query_id:
             raise ValueError('Query id is not provided!')
+
         start_time = time.time()
         s = requests.Session()
 
@@ -171,13 +177,15 @@ class DuckduckGoCrawler(Crawler):
 
             resp_container['time_taken'] = time_taken
 
-            scraping_done.send(self, search_engine='duckduckgo', response=resp_container)
+            scraping_done.send(self, search_engine='duck2go', response=resp_container)
 
             return resp_container
         except Exception as e:
+            app.logger.error('Scraping error {DuckduckgoCrawler}: ' + e)
+
             return {
                 'status': 'error',
-                'search_engine': 'google',
+                'search_engine': 'duck2go',
                 'message': 'Error occurred. Please check your log',
                 'error_message': str(e)
             }
@@ -260,6 +268,8 @@ class WikipediaCrawler(Crawler):
 
             return resp_container
         except Exception as e:
+            app.logger.error('Scraping error {WikipediaCrawler}: ' + e)
+
             return {
                 'status': 'error',
                 'search_engine': 'wikipedia',

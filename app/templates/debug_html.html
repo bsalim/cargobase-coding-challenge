@@ -1,0 +1,13 @@
+{% extends 'base_template.html' %}
+
+
+{% block body %}
+<div class="container mt-5">
+    <div class="row">
+        <div class="col-md-12">
+            {{ log.html|e }}
+        </div>
+    </div>
+</div>
+
+{% endblock %}

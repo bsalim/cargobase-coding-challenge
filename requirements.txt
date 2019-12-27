@@ -11,6 +11,5 @@ redis==3.3.11
 requests==2.22.0
 python-dotenv==0.10.3
 blinker==1.4
-rq==1.1.0
 uwsgi==2.0.18
-
+rq==1.1.0

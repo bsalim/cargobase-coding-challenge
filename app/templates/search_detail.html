@@ -1,15 +1,94 @@
-{% extends 'base.html' %}
+{% extends 'base_template.html' %}
 
 {% block body %}
-<div class="container">
-    <div class="row">
+<div class="container" id="results">
+    <div class="row mt-5">
         <div class="col-md-12">
-            <h2>Search Result on Google</h2>
+            <h1 class="mb-5">Search Results for "{{ search_query.keyword }}"</h1>
 
-            <h2>Search Results on DuckDuckGo</h2>
 
-            <h2>Search Results  on Wikipedia</h2>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-md-8 col-sm-12">
+            <ul class="nav nav-tabs">
+                <li class="nav-item">
+                    <a class="nav-link active" data-toggle="tab" role="tab" href="#google" data-toggle="tab">
+                        <div class="ico-google"></div> Google
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" data-toggle="tab" role="tab" href="#duck2go" data-toggle="tab">
+                        <div class="ico-duck2go"></div> DuckDuckGo
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" data-toggle="tab" role="tab" href="#wikipedia" data-toggle="tab">
+                        <div class="ico-wiki"></div> Wikipedia
+                    </a>
+                </li>
+            </ul>
+
+            <div class="tab-content">
+                <div class="tab-pane fade show active" role="tabpanel" id="google">
+                    <h3>Results from Google</h3>
+                    {% if not google_search_results %}
+                    <div class="alert alert-warning">
+                        No result found.
+                    </div>
+                    {% else %}
+                    {% for result in google_search_results %}
+                    <div class="card mb-2">
+                      <div class="card-body">
+                          <h4 class="mt-0">{{ result.title }}</h4>
+                          <p><a href="{{ result.link }}">{{ result.link }}</a></p>
+                          {{ result.description }}
+                      </div>
+                    </div>
+                    {% endfor %}
+                    {% endif %}
+                </div>
+
+                <div class="tab-pane fade" role="tabpanel" id="duck2go">
+                    <h3>Results from DuckDuckGo</h3>
+                    {% if not duckduckgo_search_results %}
+                    <div class="alert alert-warning">
+                        No result found.
+                    </div>
+                    {% else %}
+                    {% for result in duckduckgo_search_results %}
+                    <div class="card mb-2">
+                      <div class="card-body">
+                          <h4 class="mt-0">{{ result.title }}</h4>
+                          <p><a href="{{ result.link }}">{{ result.link }}</a></p>
+                          {{ result.description }}
+                      </div>
+                    </div>
+                    {% endfor %}
+                    {% endif %}
+                </div>
+
+                <div class="tab-pane fade" role="tabpanel" id="wikipedia">
+                    <h3>Results from Wikipedia</h3>
+                    {% if not wikipedia_search_results %}
+                    <div class="alert alert-warning">
+                        No result found.
+                    </div>
+                    {% else %}
+                    {% for result in wikipedia_search_results %}
+                    <div class="card mb-2">
+                      <div class="card-body">
+                          <h4 class="mt-0">{{ result.title }}</h4>
+                          <p><a href="{{ result.link }}">{{ result.link }}</a></p>
+                          {{ result.description }}
+                      </div>
+                    </div>
+                    {% endfor %}
+                    {% endif %}
+                </div>
+            </div>
         </div>
     </div>
 </div>
+{% include '_footer.html' %}
 {% endblock %}

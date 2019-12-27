@@ -27,6 +27,8 @@ class Config(object):
     SESSION_SQLALCHEMY_TABLE = 'sessions'
     SESSION_PERMANENT = True
 
+    RQ_REDIS_URL = 'redis://localhost:6379/0'
+
 
 class DevelopmentConfig(Config):
     pass

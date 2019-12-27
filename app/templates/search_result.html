@@ -1,13 +1,121 @@
-{% extends 'base.html' %}
+{% extends 'base_template.html' %}
 
 
 {% block body %}
-<div class="container">
+<div class="container mt-5">
     <div class="row">
         <div class="col-md-12">
+            {% if search_query %}
             <h2>{{ title }}</h2>
+            {% endif %}
+
+            {% if search_query.google_completed == 1 and  search_query.duck2go_completed == 1 and search_query.wikipedia_completed == 1 %}
+            <div class="card mt-5 mb-5">
+                <div class="card-body">
+                    <span style="font-size:24px">Your search results is ready. </span><a href="/search/detail/{{ search_query.id }}" class="btn btn-lg btn-warning">See results</a>
+                </div>
+            </div>
+            {% endif %}
         </div>
+    </div>
+
+    <div class="top10">
+        <h2 class="mb-5">Top 10 Search Results</h2>
+
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Keyword</th>
+                    <th>Status</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody id="search-queries">
+
+            </tbody>
+        </table>
     </div>
 </div>
 
+{% include '_footer.html' %}
+
+<script src="{{ url_for('static', filename='js/vanilla.js')}}"></script>
+<script src="{{ url_for('static', filename='js/axios.min.js')}}"></script>
+<script>
+{% if new_search == True %}
+    var new_search = true;
+    var qid = {{ search_query.id }};
+{% else %}
+    var new_search = false;
+    var qid = null;
+{% endif %}
+
+{% if search_query != None %}
+    var qid = {{ search_query.id }};
+{% endif %}
+
+    function apply_html_elements(obj) {
+        var search_div = document.querySelector('#search-queries');
+
+        var loader = '<div class="lds-ellipsis"><div></div><div></div><div></div><div></div></div>';
+        var done = '<div class="ico-done"></div>';
+        var html = '';
+
+        obj.forEach(function(result, index) {
+            if(qid && qid == result.query_id) {
+                badge = ' <span class="badge badge-success">current</span>';
+            }
+            else {
+                badge = ''
+            }
+            link = result.is_completed == true ? '<a class="btn btn-warning btn-sm" href="/search/detail/' + result.query_id + '" class="button"><b>View comparison</b></a>' : '';
+            html += '<tr>'
+            html += '<td><h4>' + result.keyword + badge +'</h4></td>'
+            html += '<td><div class="ico-google"></div>'
+                html +=  result.google_completed == 1 ? done : loader
+                html += '<div class="ico-duck2go"></div>'
+                html +=  result.duck2go_completed == 1 ? done : loader
+                html += '<div class="ico-wiki"></div>'
+                html +=  result.wikipedia_completed == 1 ? done : loader
+            html += '</td>'
+            html += '<td>' + link + '</td>'
+            html += '</tr>'
+        });
+        search_div.innerHTML = html;
+    }
+
+    function pollsearch(fn, timeout, interval) {
+        var endTime = Number(new Date()) + (timeout);
+        interval = interval;
+
+        var checkCondition = function(resolve, reject) {
+            var ajax = fn();
+            ajax.then( function(response){
+
+                if(response.statusText == 'OK') {
+                    apply_html_elements(response.data);
+                    setTimeout(checkCondition, interval, resolve, reject);
+                }
+                // If the condition isn't met but the timeout hasn't elapsed, go again
+                else if (Number(new Date()) < endTime) {
+                    setTimeout(checkCondition, interval, resolve, reject);
+                }
+                // Didn't match and too much time, reject!
+                else {
+                    reject(new Error('timed out for ' + fn + ': ' + arguments));
+                }
+            });
+        };
+
+        return new Promise(checkCondition);
+    }
+
+    pollsearch(function() {
+    	return axios.get('/json/results');
+    }, 10000, 5000).then(function() {
+
+    }).catch(function() {
+        // Polling timed out, handle the error!
+    });
+</script>
 {% endblock %}

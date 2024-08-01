@@ -1,6 +1,6 @@
 # Search Engine Scraping Coding Challenge
 
-This project is specifically developed solely for Cargobase coding challenge.
+This web scraping project is specifically developed solely for Cargobase coding challenge.
 
 ![Snyk Integration](search_keyword_detail.png)
 ## Dependencies

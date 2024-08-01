@@ -2,7 +2,7 @@
 
 This project is specifically developed solely for Cargobase coding challenge.
 
-
+![Snyk Integration](search_results.png)
 ## Dependencies
 + Flask Micro Framework 1.1.0
 + Flask SQLAlchemy

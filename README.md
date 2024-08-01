@@ -27,7 +27,7 @@ Since this app written in very short time, here are the list what can be improve
 # Getting start
 1. Clone Repository to your local / server folder
 ```
-git clone https://github.com/bsalim/cargobasetest.git
+git clone https://github.com/bsalim/cargobase-coding-challenge.git
 ```
 
 2. Create .env file to the ROOT PATH
